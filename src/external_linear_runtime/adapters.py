@@ -4,6 +4,7 @@ import shlex
 import subprocess
 from pathlib import Path
 
+from .config import ConfigStore
 from .errors import AdapterError
 
 
@@ -86,6 +87,10 @@ class AgentAdapter:
         if env_cmd:
             raw = shlex.split(env_cmd, posix=os.name != "nt")
             return [self._format_part(part, prompt_path, handoff) for part in raw]
+
+        configured = ConfigStore(self.paths).command_for(self.agent_name)
+        if configured:
+            return [self._format_part(part, prompt_path, handoff) for part in configured]
 
         return self.default_command(str(prompt_path))
 

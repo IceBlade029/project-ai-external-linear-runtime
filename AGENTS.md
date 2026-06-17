@@ -79,6 +79,9 @@ TDD 任务常见 blocker：
 - `python bin/elr resume --json`
 - `python bin/elr decide --file <decision.json> --json`
 - `python bin/elr doctor --json`
+- `python bin/elr agent show --json`
+- `python bin/elr agent configure claude --mode autonomous --json`
+- `python bin/elr agent configure claude --mode default --json`
 
 禁止直接编辑：
 
@@ -87,6 +90,33 @@ TDD 任务常见 blocker：
 - `.elr/handoffs/*.json`
 
 除非人类明确要求维护配置，否则不要修改 `.elr/workflow.json`。即使修改 workflow，也必须先解释影响，并避免把 runtime 状态同步问题留给后续 worker 猜。
+
+## Claude 权限策略
+
+Claude worker 默认使用 Claude Code 的普通权限策略。实际项目中，如果人类明确要求“开启 Claude 自动权限策略”、“让 Claude worker 不再反复权限确认”、“用 dangerously skip permissions 跑 Claude”，Coordinator 可以运行：
+
+```powershell
+python bin/elr agent configure claude --mode autonomous --json
+```
+
+这个命令会把当前项目的 Claude 启动策略写入 `.elr/config.json`：
+
+```json
+{
+  "mode": "autonomous",
+  "command": ["claude", "-p", "--dangerously-skip-permissions", "{prompt}"]
+}
+```
+
+之后 runtime 唤起 Claude worker 时会自动使用该策略。Coordinator 必须向人类说明：这会跳过 Claude Code 的交互式权限确认；安全边界主要转移到 ELR 的 `allowed_write_paths`、required outputs、validation commands、gate、git diff 和 human review。只应在当前项目目录可信、且最好已经是 git 仓库时开启。
+
+如果人类要求恢复默认 Claude 权限策略，运行：
+
+```powershell
+python bin/elr agent configure claude --mode default --json
+```
+
+不要直接修改 Claude Code 的全局配置来实现 ELR 项目策略；项目级策略必须留在 `.elr/config.json`，这样后续审计和迁移都能看见。
 
 ## 人类反馈处理
 

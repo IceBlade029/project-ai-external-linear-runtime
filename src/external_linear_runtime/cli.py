@@ -3,7 +3,8 @@ import json
 import os
 import sys
 
-from .errors import ELRError
+from .config import ConfigStore
+from .errors import ELRError, StateError
 from .gates import GateStore
 from .runner import Runtime, doctor, init_project
 from .state import StateStore
@@ -34,6 +35,15 @@ def main(argv=None):
     p_decide.add_argument("--json", action="store_true", default=True)
 
     sub.add_parser("doctor", help="检查 runtime 依赖和配置").add_argument("--json", action="store_true", default=True)
+
+    p_agent = sub.add_parser("agent", help="agent 启动策略配置")
+    agent_sub = p_agent.add_subparsers(dest="agent_command")
+    agent_sub.add_parser("show", help="显示 agent 配置").add_argument("--json", action="store_true", default=True)
+    p_agent_configure = agent_sub.add_parser("configure", help="配置 agent 启动策略")
+    p_agent_configure.add_argument("agent", choices=["codex", "claude"])
+    p_agent_configure.add_argument("--mode", choices=["default", "autonomous", "custom"], required=True)
+    p_agent_configure.add_argument("--command-json", help="custom 模式使用的命令数组 JSON")
+    p_agent_configure.add_argument("--json", action="store_true", default=True)
 
     p_task = sub.add_parser("task", help="任务队列操作")
     task_sub = p_task.add_subparsers(dest="task_command")
@@ -84,6 +94,22 @@ def dispatch(args):
         return init_project(root, force=args.force, profile=args.profile)
     if args.command == "doctor":
         return doctor(root)
+    if args.command == "agent":
+        paths = RuntimePaths(root)
+        if not paths.elr.is_dir():
+            raise StateError(".elr 未初始化。请先运行 elr init。")
+        config = ConfigStore(paths)
+        if args.agent_command == "show":
+            return {"ok": True, "config": config.load()}
+        if args.agent_command == "configure":
+            command = None
+            if args.command_json:
+                try:
+                    command = json.loads(args.command_json)
+                except json.JSONDecodeError as exc:
+                    raise ELRError("command-json 不是合法 JSON。", error=str(exc)) from exc
+            return config.configure_agent(args.agent, args.mode, command=command)
+        return {"ok": False, "error_code": "UNKNOWN_AGENT_COMMAND", "message": f"未知 agent 命令: {args.agent_command}"}
 
     runtime = Runtime(root)
     if args.command == "status":

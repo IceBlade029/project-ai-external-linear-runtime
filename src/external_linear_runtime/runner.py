@@ -2,6 +2,7 @@ import json
 import subprocess
 
 from .adapters import adapter_for
+from .config import ConfigStore
 from .decision import DecisionStore
 from .decision_policy import DecisionPolicy
 from .errors import ELRError, StateError, WorkflowError
@@ -355,6 +356,7 @@ def init_project(root, force=False, profile="product_tdd"):
     paths.ensure()
     workflow = _workflow_for_profile(profile)
     write_json_atomic(paths.workflow, workflow)
+    ConfigStore(paths).ensure()
     StateStore(paths).save(default_state(workflow))
     _write_default_templates(paths)
     _write_sample_tasks(paths, workflow)
@@ -368,6 +370,7 @@ def doctor(root):
     checks = {
         "elr_initialized": paths.elr.is_dir(),
         "workflow_exists": paths.workflow.is_file(),
+        "config_exists": paths.config.is_file(),
         "state_exists": paths.state.is_file(),
         "codex": shutil.which("codex"),
         "claude": shutil.which("claude"),

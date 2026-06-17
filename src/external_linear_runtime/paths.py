@@ -10,6 +10,7 @@ class RuntimePaths:
         self.elr = self.root / ELR_DIR
         self.runtime = self.elr / "runtime"
         self.workflow = self.elr / "workflow.json"
+        self.config = self.elr / "config.json"
         self.state = self.runtime / "state.json"
         self.lock = self.runtime / "lock.json"
         self.handoffs = self.elr / "handoffs"

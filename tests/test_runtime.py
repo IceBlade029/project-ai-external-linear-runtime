@@ -12,6 +12,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from external_linear_runtime.cli import main
+from external_linear_runtime.config import AUTONOMOUS_CLAUDE_COMMAND, ConfigStore
 from external_linear_runtime.errors import LockError, WorkflowError
 from external_linear_runtime.gates import GateStore
 from external_linear_runtime.jsonio import write_json_atomic
@@ -243,6 +244,40 @@ class RuntimeTestCase(unittest.TestCase):
         self.assertIn("不得充当流程主控", implementer)
         self.assertIn("blocker 报告要求", implementer)
         self.assertIn("必需产物:", implementer)
+
+    def test_init_creates_default_agent_config(self):
+        self.init()
+        config_path = self.root / ".elr" / "config.json"
+        self.assertTrue(config_path.is_file())
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        self.assertEqual(config["agents"]["claude"]["mode"], "default")
+        self.assertIsNone(config["agents"]["claude"]["command"])
+
+    def test_configure_claude_autonomous_records_skip_permissions(self):
+        self.init()
+        result = ConfigStore(RuntimePaths(self.root)).configure_agent("claude", "autonomous")
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["config"]["mode"], "autonomous")
+        self.assertEqual(result["config"]["command"], AUTONOMOUS_CLAUDE_COMMAND)
+        self.assertIn("--dangerously-skip-permissions", result["config"]["command"])
+
+    def test_agent_config_command_is_used_without_env_override(self):
+        self.init()
+        fake = self.fake_agent()
+        os.environ["ELR_CODEX_CMD_JSON"] = json.dumps([sys.executable, str(fake), "{prompt_file}"])
+        ConfigStore(RuntimePaths(self.root)).configure_agent(
+            "claude",
+            "custom",
+            command=[sys.executable, str(fake), "{prompt_file}"],
+        )
+        runtime = Runtime(self.root)
+        runtime.step()
+        runtime.decide(self.decision_file("approve_plan", "approval", "codex_planning"))
+
+        result = runtime.step()
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["handoff"]["to_agent"], "claude")
+        self.assertEqual(result["handoff"]["agent_result"]["command"][0], sys.executable)
 
     def test_task_next_respects_dependencies(self):
         self.init(profile="product_tdd")

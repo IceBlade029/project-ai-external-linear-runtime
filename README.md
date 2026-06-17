@@ -25,6 +25,7 @@ python bin/elr step --json
 
 - `.elr/runtime/state.json`
 - `.elr/workflow.json`
+- `.elr/config.json`
 - `.elr/templates/codex/`
 - `.elr/templates/claude/`
 - `.elr/handoffs/`
@@ -106,7 +107,33 @@ python bin/elr decide --file decision.json --json
 - `codex exec <prompt_file>`
 - `claude -p <prompt>`
 
-测试或本地适配时，可以用 JSON 命令数组覆盖：
+项目级 agent 启动策略写在 `.elr/config.json`。查看当前配置：
+
+```powershell
+python bin/elr agent show --json
+```
+
+如果希望 Claude worker 在当前项目中自动跳过 Claude Code 的交互式权限确认，可以显式开启 autonomous 模式：
+
+```powershell
+python bin/elr agent configure claude --mode autonomous --json
+```
+
+这会让 runtime 后续使用：
+
+```powershell
+claude -p --dangerously-skip-permissions "<worker prompt>"
+```
+
+恢复默认策略：
+
+```powershell
+python bin/elr agent configure claude --mode default --json
+```
+
+建议只在可信项目目录、最好已经初始化 git 的情况下开启 autonomous 模式。开启后，主要安全边界来自 ELR 的 handoff、`allowed_write_paths`、validation、gate 和 human review。
+
+测试或本地适配时，可以用 JSON 命令数组临时覆盖项目配置。环境变量优先级高于 `.elr/config.json`：
 
 ```powershell
 $env:ELR_CODEX_CMD_JSON='["python","fake_agent.py","{prompt_file}"]'
