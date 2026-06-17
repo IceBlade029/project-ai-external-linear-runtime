@@ -1,0 +1,12 @@
+[project]
+name = "external-linear-runtime"
+version = "0.1.0"
+description = "文件驱动的单线程运行时，用于协调 Codex 和 Claude workers。"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+elr = "external_linear_runtime.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
